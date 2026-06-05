@@ -47,7 +47,7 @@ export function App() {
             </form>
           </div>
 
-          {participants.map((p, pIndex) => (
+          {participants.map((p) => (
             <div key={p.id} className="bg-white rounded-xl border p-4 shadow-sm">
               <h3 className="font-bold text-lg mb-4">{p.name}</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
