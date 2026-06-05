@@ -1,7 +1,10 @@
+import { useState } from 'preact/hooks';
 import { Trophy } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-export function Dashboard({ participants }: { participants: { id: string, name: string, totalPoints: number, predictions: any }[] }) {
+export function Dashboard({ participants, matches }: { participants: { id: string, name: string, totalPoints: number, predictions: any }[], matches: any[] }) {
+  const [selectedP, setSelectedP] = useState<any | null>(null);
+
   const chartData = participants.map(p => ({
     name: p.name,
     points: p.totalPoints
@@ -36,7 +39,7 @@ export function Dashboard({ participants }: { participants: { id: string, name: 
           </thead>
           <tbody>
             {[...participants].sort((a,b) => b.totalPoints - a.totalPoints).map((p, i) => (
-              <tr key={p.id} className="border-b">
+              <tr key={p.id} className="border-b cursor-pointer hover:bg-blue-50" onClick={() => setSelectedP(p)}>
                 <td className="px-4 py-3">{i + 1}</td>
                 <td className="px-4 py-3 font-semibold">{p.name}</td>
                 <td className="px-4 py-3 text-right font-bold text-blue-600">{p.totalPoints}</td>
@@ -45,6 +48,26 @@ export function Dashboard({ participants }: { participants: { id: string, name: 
           </tbody>
         </table>
       </div>
+
+      {selectedP && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4" onClick={() => setSelectedP(null)}>
+          <div className="bg-white p-6 rounded-xl w-full max-w-sm max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <h2 className="font-bold text-lg mb-4">Predicții: {selectedP.name}</h2>
+            <div className="space-y-2 text-sm">
+              {matches.map((m: any) => {
+                const pred = selectedP.predictions[m.id];
+                return (
+                  <div key={m.id} className="flex justify-between border-b pb-1">
+                    <span className="truncate w-1/2">{m.teams}</span>
+                    <span className="font-bold">{pred ? `${pred.h} - ${pred.a}` : '-'}</span>
+                  </div>
+                )
+              })}
+            </div>
+            <button onClick={() => setSelectedP(null)} className="mt-4 w-full bg-slate-800 text-white py-2 rounded-lg">Închide</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -22,6 +22,10 @@ export function App() {
     setParticipants(updated);
   };
 
+  const saveParticipantPredictions = (pIndex: number) => {
+    alert(`Predicțiile pentru ${participants[pIndex].name} au fost salvate local!`);
+  };
+
   const validateScores = (matchId: string, realH: string, realA: string) => {
     const h = parseInt(realH);
     const a = parseInt(realA);
@@ -31,9 +35,7 @@ export function App() {
       const pred = p.predictions[matchId];
       if (!pred) return p;
       
-      // Regula: Corect = 1 punct, Incorect = 0 puncte
       const points = (parseInt(pred.h) === h && parseInt(pred.a) === a) ? 1 : 0;
-
       return { ...p, totalPoints: p.totalPoints + points };
     });
     setParticipants(updated);
@@ -65,12 +67,18 @@ export function App() {
                   <input type="number" placeholder="A" onChange={e => updatePrediction(pIndex, m.id, (e.target as HTMLInputElement).value, 'a')} className="w-12 bg-slate-50 border rounded text-center" />
                 </div>
               ))}
+              <button 
+                onClick={() => saveParticipantPredictions(pIndex)}
+                className="mt-4 w-full bg-green-600 text-white font-bold py-2 rounded-lg hover:bg-green-700"
+              >
+                Salvează Predicții
+              </button>
             </div>
           ))}
         </div>
 
         <div className="bg-white rounded-xl border p-4 shadow-sm space-y-4">
-          <h3 className="font-bold text-slate-700">Validează Scor Final (Admin)</h3>
+          <h3 className="font-bold text-slate-700">Validează Scor Final</h3>
           {matches.map(m => (
             <div key={m.id} className="flex items-center gap-2 text-sm mb-2">
               <span className="flex-1 truncate">{m.teams}</span>
@@ -99,7 +107,7 @@ export function App() {
           <Settings className="w-4 h-4" /> Admin
         </button>
       </header>
-      <Dashboard participants={participants} />
+      <Dashboard participants={participants} matches={matches} />
     </div>
   )
 }
