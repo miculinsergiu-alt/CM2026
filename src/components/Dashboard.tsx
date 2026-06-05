@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'preact/hooks';
-import { Trophy, ShieldCheck, BarChart2 } from 'lucide-react';
+import { Trophy } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const API_URL = 'https://cm2026flex2-backend.onrender.com/api';
