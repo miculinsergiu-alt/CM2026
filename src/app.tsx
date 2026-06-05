@@ -15,8 +15,12 @@ export function App() {
     setNewParticipant('');
   };
 
-  const updatePrediction = (pIndex: number, matchId: string, score: string, type: 'h' | 'a') => {
+  const updatePrediction = (_pIndex: number, matchId: string, score: string, type: 'h' | 'a') => {
     const updated = [...participants];
+    // We are no longer using pIndex directly here as we use findIndex or ID matching, but keeping the signature for now if needed, 
+    // or we can remove the unused pIndex variable if the logic allows.
+    // For now, prefixing with _ to ignore TS unused error.
+    const pIndex = participants.findIndex(p => p.id === participants[_pIndex].id);
     if (!updated[pIndex].predictions[matchId]) updated[pIndex].predictions[matchId] = { h: '', a: '' };
     updated[pIndex].predictions[matchId][type] = score;
     setParticipants(updated);

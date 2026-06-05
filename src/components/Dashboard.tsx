@@ -61,8 +61,9 @@ export function Dashboard({ participants, matches }: { participants: { id: strin
                 
                 let bgColor = 'bg-white';
                 if (pred && realH !== null && realA !== null) {
+                  // Corect = verde, Incorect = rosu
                   const isCorrect = parseInt(pred.h) === realH && parseInt(pred.a) === realA;
-                  bgColor = isCorrect ? 'bg-green-200' : 'bg-red-200';
+                  bgColor = isCorrect ? 'bg-green-300' : 'bg-red-300';
                 }
 
                 return (
