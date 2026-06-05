@@ -11,36 +11,18 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL 
 });
 
-// POST Matches (Bulk)
-app.post('/api/matches', async (req, res) => {
-  const matches = req.body;
+// GET Matches
+app.get('/api/matches', async (req, res) => {
   try {
-    const query = 'INSERT INTO matches (team_home, team_away, start_time, status) VALUES ' + 
-                  matches.map((_, i) => `($${i*4+1}, $${i*4+2}, $${i*4+3}, $${i*4+4})`).join(', ');
-    const values = matches.flatMap(m => [m.team_home, m.team_away, m.start_time, m.status]);
-    await pool.query(query, values);
-    res.json({ message: 'Matches imported' });
+    const result = await pool.query('SELECT * FROM matches ORDER BY start_time');
+    res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// POST Prediction
-app.post('/api/predictions', async (req, res) => {
-  const { participant_id, match_id, predicted_home, predicted_away } = req.body;
-  try {
-    await pool.query(
-      'INSERT INTO predictions (participant_id, match_id, predicted_home, predicted_away) VALUES ($1, $2, $3, $4) ON CONFLICT (participant_id, match_id) DO UPDATE SET predicted_home = $3, predicted_away = $4',
-      [participant_id, match_id, predicted_home, predicted_away]
-    );
-    res.json({ message: 'Prediction saved' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// GET Leaderboard
-app.get('/api/leaderboard', async (req, res) => {
+// GET Participants (Leaderboard)
+app.get('/api/participants', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM participants ORDER BY total_points DESC');
     res.json(result.rows);
@@ -49,45 +31,69 @@ app.get('/api/leaderboard', async (req, res) => {
   }
 });
 
-// GET Profile (Participants table acts as profile)
-app.get('/api/profile/:id', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM participants WHERE id = $1', [req.params.id]);
-    res.json(result.rows[0] || null);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// GET User Predictions
-app.get('/api/predictions/:participant_id', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT match_id, predicted_home, predicted_away FROM predictions WHERE participant_id = $1', [req.params.participant_id]);
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// GET Participants
-app.get('/api/participants', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM participants ORDER BY name');
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// POST Participant
+// POST Add Participant
 app.post('/api/participants', async (req, res) => {
-  const { name } = req.body;
   try {
-    await pool.query('INSERT INTO participants (name) VALUES ($1)', [name]);
-    res.json({ message: 'Participant added' });
+    await pool.query('INSERT INTO participants (name) VALUES ($1)', [req.body.name]);
+    res.status(201).json({ message: 'Participant added' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.listen(3000, () => console.log('Server running on port 3000'));
+// POST Save Predictions (Batch)
+app.post('/api/predictions', async (req, res) => {
+  const { participant_id, predictions } = req.body;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    for (const p of predictions) {
+      await client.query(
+        'INSERT INTO predictions (participant_id, match_id, predicted_home, predicted_away) VALUES ($1, $2, $3, $4) ON CONFLICT (participant_id, match_id) DO UPDATE SET predicted_home = $3, predicted_away = $4',
+        [participant_id, p.match_id, p.predicted_home, p.predicted_away]
+      );
+    }
+    await client.query('COMMIT');
+    res.json({ message: 'Predictions saved' });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// POST Validate Score & Recalculate Points
+app.post('/api/validate-match', async (req, res) => {
+  const { match_id, real_home, real_away } = req.body;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    // Update match score
+    await client.query('UPDATE matches SET score_home = $1, score_away = $2, status = \'finished\' WHERE id = $3', [real_home, real_away, match_id]);
+    
+    // Fetch all predictions
+    const preds = await client.query('SELECT * FROM predictions WHERE match_id = $1', [match_id]);
+    
+    for (const p of preds.rows) {
+      let points = 0;
+      if (p.predicted_home === real_home && p.predicted_away === real_away) points = 3;
+      else if (Math.sign(p.predicted_home - p.predicted_away) === Math.sign(real_home - real_away)) points = 1;
+      else points = -1;
+      
+      await client.query('UPDATE predictions SET points_earned = $1 WHERE id = $2', [points, p.id]);
+      await client.query('UPDATE participants SET total_points = total_points + $1 WHERE id = $2', [points, p.participant_id]);
+    }
+    
+    await client.query('COMMIT');
+    res.json({ message: 'Score validated and points updated' });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+app.listen(3000, () => console.log('Backend running on port 3000'));
