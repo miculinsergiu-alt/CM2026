@@ -5,13 +5,13 @@ import { matches } from './lib/matches'
 
 export function App() {
   const [isAdmin, setIsAdmin] = useState(false);
-  const [participants, setParticipants] = useState<{name: string, predictions: any, totalPoints: number}[]>([]);
+  const [participants, setParticipants] = useState<{id: string, name: string, predictions: any, totalPoints: number}[]>([]);
   const [newParticipant, setNewParticipant] = useState('');
 
   const addParticipant = (e: any) => {
     e.preventDefault();
     if(!newParticipant) return;
-    setParticipants([...participants, { name: newParticipant, predictions: {}, totalPoints: 0 }]);
+    setParticipants([...participants, { id: Date.now().toString(), name: newParticipant, predictions: {}, totalPoints: 0 }]);
     setNewParticipant('');
   };
 
@@ -31,10 +31,8 @@ export function App() {
       const pred = p.predictions[matchId];
       if (!pred) return p;
       
-      let points = 0;
-      if (parseInt(pred.h) === h && parseInt(pred.a) === a) points = 3; // Scor exact
-      else if (Math.sign(parseInt(pred.h) - parseInt(pred.a)) === Math.sign(h - a)) points = 1; // Rezultat
-      else points = -1; // Gresit
+      // Regula: Corect = 1 punct, Incorect = 0 puncte
+      const points = (parseInt(pred.h) === h && parseInt(pred.a) === a) ? 1 : 0;
 
       return { ...p, totalPoints: p.totalPoints + points };
     });
@@ -58,34 +56,15 @@ export function App() {
 
         <div className="space-y-4">
           {participants.map((p, pIndex) => (
-            <div key={pIndex} className="bg-white rounded-xl border p-4 shadow-sm">
+            <div key={p.id} className="bg-white rounded-xl border p-4 shadow-sm">
               <h3 className="font-bold text-lg mb-4">{p.name}</h3>
               {matches.map(m => (
                 <div key={m.id} className="flex items-center gap-2 text-sm mb-2">
-                  <span className="flex-1 truncate">{m.team_home} vs {m.team_away}</span>
+                  <span className="flex-1 truncate">{m.teams}</span>
                   <input type="number" placeholder="H" onChange={e => updatePrediction(pIndex, m.id, (e.target as HTMLInputElement).value, 'h')} className="w-12 bg-slate-50 border rounded text-center" />
                   <input type="number" placeholder="A" onChange={e => updatePrediction(pIndex, m.id, (e.target as HTMLInputElement).value, 'a')} className="w-12 bg-slate-50 border rounded text-center" />
                 </div>
               ))}
-              <button 
-                onClick={async () => {
-                  const predList = Object.entries(p.predictions).map(([match_id, scores]: [string, any]) => ({
-                    participant_id: p.id,
-                    match_id,
-                    predicted_home: parseInt(scores.h || 0),
-                    predicted_away: parseInt(scores.a || 0)
-                  }));
-                  await fetch('https://cm2026flex2-backend.onrender.com/api/predictions', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ participant_id: p.id, predictions: predList })
-                  });
-                  alert('Predicții salvate!');
-                }}
-                className="mt-4 w-full bg-green-600 text-white font-bold py-2 rounded-lg"
-              >
-                Salvează Predicții
-              </button>
             </div>
           ))}
         </div>
@@ -94,7 +73,7 @@ export function App() {
           <h3 className="font-bold text-slate-700">Validează Scor Final (Admin)</h3>
           {matches.map(m => (
             <div key={m.id} className="flex items-center gap-2 text-sm mb-2">
-              <span className="flex-1 truncate">{m.team_home} vs {m.team_away}</span>
+              <span className="flex-1 truncate">{m.teams}</span>
               <input id={`real-h-${m.id}`} type="number" placeholder="H" className="w-12 bg-slate-50 border rounded text-center" />
               <input id={`real-a-${m.id}`} type="number" placeholder="A" className="w-12 bg-slate-50 border rounded text-center" />
               <button onClick={() => validateScores(m.id, (document.getElementById(`real-h-${m.id}`) as HTMLInputElement).value, (document.getElementById(`real-a-${m.id}`) as HTMLInputElement).value)} className="bg-green-600 text-white px-2 py-1 rounded">Finish</button>
