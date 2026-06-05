@@ -61,20 +61,31 @@ export function App() {
               </div>
               <button 
                 onClick={async () => {
-                  const predList = matches.map(m => {
-                      const hInput = document.querySelector(`input[id="h-${p.id}-${m.id}"]`) as HTMLInputElement;
-                      const aInput = document.querySelector(`input[id="a-${p.id}-${m.id}"]`) as HTMLInputElement;
-                      return { match_id: m.id, predicted_home: parseInt(hInput?.value || '0'), predicted_away: parseInt(aInput?.value || '0') };
-                   }).filter(p => !isNaN(p.predicted_home) && !isNaN(p.predicted_away));
+                  try {
+                    const predList = matches.map(m => {
+                      const hInput = document.getElementById(`h-${p.id}-${m.id}`) as HTMLInputElement;
+                      const aInput = document.getElementById(`a-${p.id}-${m.id}`) as HTMLInputElement;
+                      return { 
+                        match_id: m.id, 
+                        predicted_home: parseInt(hInput?.value || '0'), 
+                        predicted_away: parseInt(aInput?.value || '0') 
+                      };
+                    }).filter(pred => !isNaN(pred.predicted_home) && !isNaN(pred.predicted_away));
 
-                  await fetch('https://cm2026flex2-backend.onrender.com/api/predictions', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ participant_id: p.id, predictions: predList })
-                  });
-                  alert('Predicții salvate în Bază!');
+                    const response = await fetch('https://cm2026flex2-backend.onrender.com/api/predictions', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ participant_id: p.id, predictions: predList })
+                    });
+                    
+                    if (!response.ok) throw new Error('Eroare la salvare');
+                    alert('Predicții salvate în Bază!');
+                  } catch (error) {
+                    console.error(error);
+                    alert('Eroare la salvarea predicțiilor!');
+                  }
                 }}
-                className="mt-4 w-full bg-green-600 text-white font-bold py-2 rounded-lg"
+                className="mt-4 w-full bg-green-600 text-white font-bold py-2 rounded-lg hover:bg-green-700"
               >
                 Salvează Predicții
               </button>
