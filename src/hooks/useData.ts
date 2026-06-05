@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'preact/hooks';
 
-const API_URL = 'http://localhost:3000/api';
+const API_URL = 'https://cm2026flex2.onrender.com';
 
 export function useMatches() {
   const [matches, setMatches] = useState<any[]>([]);
@@ -33,3 +33,8 @@ export function useAdminData() {
 
   return { participants, matches, loading };
 }
+
+// Stubs for remaining exports to fix the build
+export function useLeaderboard() { return { profiles: [], loading: false }; }
+export function useProfile(userId: string | undefined) { return { profile: null, loading: false }; }
+export function useUserPredictions(userId: string | undefined) { return { predictions: {}, loading: false }; }
