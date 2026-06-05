@@ -173,14 +173,35 @@ export function App() {
             ) : (
               <div className="bg-white rounded-xl border p-4 shadow-sm space-y-4">
                 <h3 className="font-bold text-slate-700">Add New Match</h3>
-                <div className="space-y-3">
-                  <input type="text" placeholder="Team Home" className="w-full bg-slate-50 border rounded-lg py-2 px-3 outline-none focus:ring-2 focus:ring-blue-500" />
-                  <input type="text" placeholder="Team Away" className="w-full bg-slate-50 border rounded-lg py-2 px-3 outline-none focus:ring-2 focus:ring-blue-500" />
-                  <input type="datetime-local" className="w-full bg-slate-50 border rounded-lg py-2 px-3 outline-none focus:ring-2 focus:ring-blue-500" />
-                  <button className="w-full bg-slate-800 text-white font-bold py-2 rounded-lg hover:bg-slate-900 transition-colors">
+                <form 
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const target = e.target as HTMLFormElement;
+                    const home = (target.elements.namedItem('home') as HTMLInputElement).value;
+                    const away = (target.elements.namedItem('away') as HTMLInputElement).value;
+                    const time = (target.elements.namedItem('time') as HTMLInputElement).value;
+                    
+                    if (!home || !away || !time) return alert('Please fill all fields');
+
+                    const { error } = await supabase.from('matches').insert([
+                      { team_home: home, team_away: away, start_time: new Date(time).toISOString(), status: 'scheduled' }
+                    ]);
+
+                    if (error) alert(error.message);
+                    else {
+                      alert('Match created!');
+                      target.reset();
+                    }
+                  }}
+                  className="space-y-3"
+                >
+                  <input name="home" type="text" placeholder="Team Home" className="w-full bg-slate-50 border rounded-lg py-2 px-3 outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input name="away" type="text" placeholder="Team Away" className="w-full bg-slate-50 border rounded-lg py-2 px-3 outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input name="time" type="datetime-local" className="w-full bg-slate-50 border rounded-lg py-2 px-3 outline-none focus:ring-2 focus:ring-blue-500" />
+                  <button type="submit" className="w-full bg-slate-800 text-white font-bold py-2 rounded-lg hover:bg-slate-900 transition-colors">
                     Create Match
                   </button>
-                </div>
+                </form>
               </div>
             )}
           </section>
