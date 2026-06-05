@@ -71,3 +71,36 @@ export function useLeaderboard() {
 
   return { profiles, loading };
 }
+
+export function useUserPredictions(userId: string | undefined) {
+  const [predictions, setPredictions] = useState<Record<string, { home: number; away: number }>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) {
+      setPredictions({});
+      setLoading(false);
+      return;
+    }
+
+    async function fetchPredictions() {
+      const { data } = await supabase
+        .from('predictions')
+        .select('match_id, predicted_home, predicted_away')
+        .eq('user_id', userId);
+
+      if (data) {
+        const predMap: Record<string, { home: number; away: number }> = {};
+        data.forEach(p => {
+          predMap[p.match_id] = { home: p.predicted_home, away: p.predicted_away };
+        });
+        setPredictions(predMap);
+      }
+      setLoading(false);
+    }
+
+    fetchPredictions();
+  }, [userId]);
+
+  return { predictions, loading };
+}

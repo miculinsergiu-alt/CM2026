@@ -3,9 +3,10 @@ import { Trophy, Calendar, User, Settings, LogOut } from 'lucide-react'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { useAuth } from './hooks/useAuth'
-import { useMatches, useLeaderboard, useProfile } from './hooks/useData'
+import { useMatches, useLeaderboard, useProfile, useUserPredictions } from './hooks/useData'
 import { Auth } from './components/Auth'
 import { supabase } from './lib/supabase'
+import { useEffect } from 'preact/hooks'
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -18,6 +19,32 @@ export function App() {
   const { matches, loading: matchesLoading } = useMatches()
   const { profiles, loading: leaderboardLoading } = useLeaderboard()
   const { profile } = useProfile(user?.id)
+  const { predictions: existingPredictions } = useUserPredictions(user?.id)
+
+  const [predictions, setPredictions] = useState<Record<string, { home: number; away: number }>>({})
+
+  useEffect(() => {
+    if (existingPredictions) {
+      setPredictions(existingPredictions)
+    }
+  }, [existingPredictions])
+
+  const handleSavePrediction = async (matchId: string) => {
+    const pred = predictions[matchId]
+    if (!pred || pred.home === undefined || pred.away === undefined) {
+      return alert('Please enter both scores')
+    }
+
+    const { error } = await supabase.from('predictions').upsert({
+      user_id: user?.id,
+      match_id: matchId,
+      predicted_home: pred.home,
+      predicted_away: pred.away,
+    }, { onConflict: 'user_id,match_id' })
+
+    if (error) alert(error.message)
+    else alert('Prediction saved!')
+  }
 
   if (authLoading) {
     return (
@@ -90,11 +117,32 @@ export function App() {
                   {match.status === 'scheduled' && (
                     <>
                       <div className="pt-2 border-t flex items-center gap-2">
-                        <input type="number" placeholder="0" className="w-full bg-slate-50 border rounded-lg py-2 text-center font-bold outline-none focus:ring-2 focus:ring-blue-500 transition-all" />
+                        <input 
+                          type="number" 
+                          placeholder="0" 
+                          value={predictions[match.id]?.home ?? ''}
+                          onChange={(e) => setPredictions(prev => ({
+                            ...prev,
+                            [match.id]: { ...prev[match.id], home: parseInt((e.target as HTMLInputElement).value) }
+                          }))}
+                          className="w-full bg-slate-50 border rounded-lg py-2 text-center font-bold outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
+                        />
                         <span className="text-slate-300">-</span>
-                        <input type="number" placeholder="0" className="w-full bg-slate-50 border rounded-lg py-2 text-center font-bold outline-none focus:ring-2 focus:ring-blue-500 transition-all" />
+                        <input 
+                          type="number" 
+                          placeholder="0" 
+                          value={predictions[match.id]?.away ?? ''}
+                          onChange={(e) => setPredictions(prev => ({
+                            ...prev,
+                            [match.id]: { ...prev[match.id], away: parseInt((e.target as HTMLInputElement).value) }
+                          }))}
+                          className="w-full bg-slate-50 border rounded-lg py-2 text-center font-bold outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
+                        />
                       </div>
-                      <button className="w-full bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm shadow-blue-200">
+                      <button 
+                        onClick={() => handleSavePrediction(match.id)}
+                        className="w-full bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm shadow-blue-200"
+                      >
                         Save Prediction
                       </button>
                     </>
