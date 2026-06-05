@@ -4,7 +4,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
-app.use(cors());
+app.use(cors({ origin: 'https://cm2026flex2.onrender.com' }));
 app.use(express.json());
 
 const pool = new Pool({ 
