@@ -5,13 +5,13 @@ import { matches } from './lib/matches'
 
 export function App() {
   const [isAdmin, setIsAdmin] = useState(false);
-  const [participants, setParticipants] = useState<{name: string, predictions: any}[]>([]);
+  const [participants, setParticipants] = useState<{name: string, predictions: any, totalPoints: number}[]>([]);
   const [newParticipant, setNewParticipant] = useState('');
 
   const addParticipant = (e: any) => {
     e.preventDefault();
     if(!newParticipant) return;
-    setParticipants([...participants, { name: newParticipant, predictions: {} }]);
+    setParticipants([...participants, { name: newParticipant, predictions: {}, totalPoints: 0 }]);
     setNewParticipant('');
   };
 
@@ -20,6 +20,26 @@ export function App() {
     if (!updated[pIndex].predictions[matchId]) updated[pIndex].predictions[matchId] = { h: '', a: '' };
     updated[pIndex].predictions[matchId][type] = score;
     setParticipants(updated);
+  };
+
+  const validateScores = (matchId: string, realH: string, realA: string) => {
+    const h = parseInt(realH);
+    const a = parseInt(realA);
+    if (isNaN(h) || isNaN(a)) return;
+
+    const updated = participants.map(p => {
+      const pred = p.predictions[matchId];
+      if (!pred) return p;
+      
+      let points = 0;
+      if (parseInt(pred.h) === h && parseInt(pred.a) === a) points = 3; // Scor exact
+      else if (Math.sign(parseInt(pred.h) - parseInt(pred.a)) === Math.sign(h - a)) points = 1; // Rezultat
+      else points = -1; // Gresit
+
+      return { ...p, totalPoints: p.totalPoints + points };
+    });
+    setParticipants(updated);
+    alert('Scor validat și puncte actualizate!');
   };
 
   if (isAdmin) {
@@ -50,6 +70,18 @@ export function App() {
             </div>
           ))}
         </div>
+
+        <div className="bg-white rounded-xl border p-4 shadow-sm space-y-4">
+          <h3 className="font-bold text-slate-700">Validează Scor Final (Admin)</h3>
+          {matches.map(m => (
+            <div key={m.id} className="flex items-center gap-2 text-sm mb-2">
+              <span className="flex-1 truncate">{m.team_home} vs {m.team_away}</span>
+              <input id={`real-h-${m.id}`} type="number" placeholder="H" className="w-12 bg-slate-50 border rounded text-center" />
+              <input id={`real-a-${m.id}`} type="number" placeholder="A" className="w-12 bg-slate-50 border rounded text-center" />
+              <button onClick={() => validateScores(m.id, (document.getElementById(`real-h-${m.id}`) as HTMLInputElement).value, (document.getElementById(`real-a-${m.id}`) as HTMLInputElement).value)} className="bg-green-600 text-white px-2 py-1 rounded">Finish</button>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -69,7 +101,7 @@ export function App() {
           <Settings className="w-4 h-4" /> Admin
         </button>
       </header>
-      <Dashboard />
+      <Dashboard participants={participants} />
     </div>
   )
 }

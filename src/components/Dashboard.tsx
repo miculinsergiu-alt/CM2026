@@ -4,20 +4,12 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } fro
 
 const API_URL = 'https://cm2026flex2-backend.onrender.com/api';
 
-export function Dashboard() {
-  const [data, setData] = useState<any[]>([]);
+export function Dashboard({ participants }: { participants: { name: string, totalPoints: number }[] }) {
 
-  useEffect(() => {
-    fetch(`${API_URL}/leaderboard`)
-      .then(res => res.json())
-      .then(setData);
-  }, []);
-
-  // Format data for chart: [{ name: 'User', correct: 5, wrong: 2 }, ...]
-  const chartData = data.map(p => ({
+  // Format data for chart
+  const chartData = participants.map(p => ({
     name: p.name,
-    correct: p.correct_predictions || 0,
-    wrong: p.wrong_predictions || 0
+    points: p.totalPoints
   }));
 
   return (
@@ -34,8 +26,7 @@ export function Dashboard() {
             <YAxis />
             <Tooltip />
             <Legend />
-            <Bar dataKey="correct" stackId="a" fill="#22c55e" name="Corecte" />
-            <Bar dataKey="wrong" stackId="a" fill="#ef4444" name="Greșite" />
+            <Bar dataKey="points" fill="#3b82f6" name="Puncte" />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -51,11 +42,11 @@ export function Dashboard() {
             </tr>
           </thead>
           <tbody>
-            {data.map((p, i) => (
-              <tr key={p.id} className="border-b">
+            {[...participants].sort((a,b) => b.totalPoints - a.totalPoints).map((p, i) => (
+              <tr key={i} className="border-b">
                 <td className="px-4 py-3">{i + 1}</td>
                 <td className="px-4 py-3 font-semibold">{p.name}</td>
-                <td className="px-4 py-3 text-right font-bold text-blue-600">{p.total_points}</td>
+                <td className="px-4 py-3 text-right font-bold text-blue-600">{p.totalPoints}</td>
               </tr>
             ))}
           </tbody>
