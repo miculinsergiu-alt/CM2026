@@ -67,6 +67,25 @@ export function App() {
                   <input type="number" placeholder="A" onChange={e => updatePrediction(pIndex, m.id, (e.target as HTMLInputElement).value, 'a')} className="w-12 bg-slate-50 border rounded text-center" />
                 </div>
               ))}
+              <button 
+                onClick={async () => {
+                  const predList = Object.entries(p.predictions).map(([match_id, scores]: [string, any]) => ({
+                    participant_id: p.id,
+                    match_id,
+                    predicted_home: parseInt(scores.h || 0),
+                    predicted_away: parseInt(scores.a || 0)
+                  }));
+                  await fetch('https://cm2026flex2-backend.onrender.com/api/predictions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ participant_id: p.id, predictions: predList })
+                  });
+                  alert('Predicții salvate!');
+                }}
+                className="mt-4 w-full bg-green-600 text-white font-bold py-2 rounded-lg"
+              >
+                Salvează Predicții
+              </button>
             </div>
           ))}
         </div>
