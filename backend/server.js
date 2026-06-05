@@ -35,6 +35,36 @@ app.post('/api/predictions', async (req, res) => {
   }
 });
 
+// GET Leaderboard
+app.get('/api/leaderboard', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM participants ORDER BY total_points DESC');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET Profile (Participants table acts as profile)
+app.get('/api/profile/:id', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM participants WHERE id = $1', [req.params.id]);
+    res.json(result.rows[0] || null);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET User Predictions
+app.get('/api/predictions/:participant_id', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT match_id, predicted_home, predicted_away FROM predictions WHERE participant_id = $1', [req.params.participant_id]);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET Participants
 app.get('/api/participants', async (req, res) => {
   try {
