@@ -59,12 +59,30 @@ export function App() {
                 {matches.map(m => (
                   <div key={m.id} className="flex items-center gap-2 text-xs border-b pb-2">
                     <span className="flex-1 truncate">{m.teams}</span>
-                    <input type="number" placeholder="H" onChange={e => updatePrediction(pIndex, m.id, (e.target as HTMLInputElement).value, 'h')} className="w-10 bg-slate-50 border rounded text-center py-1" />
-                    <input type="number" placeholder="A" onChange={e => updatePrediction(pIndex, m.id, (e.target as HTMLInputElement).value, 'a')} className="w-10 bg-slate-50 border rounded text-center py-1" />
+                    <input id={`h-${p.id}-${m.id}`} type="number" placeholder="H" className="w-10 bg-slate-50 border rounded text-center py-1" />
+                    <input id={`a-${p.id}-${m.id}`} type="number" placeholder="A" className="w-10 bg-slate-50 border rounded text-center py-1" />
                   </div>
                 ))}
               </div>
-              <button onClick={() => alert('Predicții salvate local!')} className="mt-4 w-full bg-green-600 text-white font-bold py-2 rounded-lg">Salvează</button>
+              <button 
+                onClick={async () => {
+                  const predList = matches.map(m => {
+                      const hInput = document.querySelector(`input[id="h-${p.id}-${m.id}"]`) as HTMLInputElement;
+                      const aInput = document.querySelector(`input[id="a-${p.id}-${m.id}"]`) as HTMLInputElement;
+                      return { match_id: m.id, predicted_home: parseInt(hInput?.value || '0'), predicted_away: parseInt(aInput?.value || '0') };
+                   }).filter(p => !isNaN(p.predicted_home) && !isNaN(p.predicted_away));
+
+                  await fetch('https://cm2026flex2-backend.onrender.com/api/predictions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ participant_id: p.id, predictions: predList })
+                  });
+                  alert('Predicții salvate în Bază!');
+                }}
+                className="mt-4 w-full bg-green-600 text-white font-bold py-2 rounded-lg"
+              >
+                Salvează Predicții
+              </button>
             </div>
           ))}
 
