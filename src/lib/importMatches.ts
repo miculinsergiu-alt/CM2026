@@ -1,0 +1,94 @@
+import { supabase } from '../lib/supabase';
+
+const matches = [
+  {"date":"11 iunie, ora 22:00","teams":"Mexic - Africa de Sud"},
+  {"date":"12 iunie, ora 5:00","teams":"Coreea de Sud - Cehia"},
+  {"date":"12 iunie, ora 22:00","teams":"Canada - Bosnia"},
+  {"date":"13 iunie, ora 4:00","teams":"SUA - Paraguay"},
+  {"date":"13 iunie, ora 22:00","teams":"Qatar - Elveția"},
+  {"date":"14 iunie, ora 1:00","teams":"Brazilia - Maroc"},
+  {"date":"14 iunie, ora 4:00","teams":"Haiti - Scoția"},
+  {"date":"14 iunie, ora 7:00","teams":"Australia - Turcia"},
+  {"date":"14 iunie, ora 20:00","teams":"Germania - Curacao"},
+  {"date":"14 iunie, ora 23:00","teams":"Olanda - Japonia"},
+  {"date":"15 iunie, ora 2:00","teams":"Coasta de Fildeș - Ecuador"},
+  {"date":"15 iunie, ora 5:00","teams":"Suedia - Tunisia"},
+  {"date":"15 iunie, ora 19:00","teams":"Spania - Insulele Capului Verde"},
+  {"date":"15 iunie, ora 22:00","teams":"Belgia - Egipt"},
+  {"date":"16 iunie, ora 1:00","teams":"Arabia Saudită - Uruguay"},
+  {"date":"16 iunie, ora 4:00","teams":"Iran - Noua Zeelandă"},
+  {"date":"16 iunie, ora 22:00","teams":"Franța - Senegal"},
+  {"date":"17 iunie, ora 1:00","teams":"Irak - Norvegia"},
+  {"date":"17 iunie, ora 4:00","teams":"Argentina - Algeria"},
+  {"date":"17 iunie, ora 7:00","teams":"Austria - Iordania"},
+  {"date":"17 iunie, ora 20:00","teams":"Portugalia - RD Congo"},
+  {"date":"17 iunie, ora 23:00","teams":"Anglia - Croația"},
+  {"date":"18 iunie, ora 2:00","teams":"Ghana - Panama"},
+  {"date":"18 iunie, ora 5:00","teams":"Uzbekistan - Columbia"},
+  {"date":"18 iunie, ora 19:00","teams":"Cehia - Africa de Sud"},
+  {"date":"18 iunie, ora 22:00","teams":"Elveția - Bosnia"},
+  {"date":"19 iunie, ora 1:00","teams":"Canada - Qatar"},
+  {"date":"19 iunie, ora 4:00","teams":"Mexic - Coreea de Sud"},
+  {"date":"19 iunie, ora 22:00","teams":"SUA - Australia"},
+  {"date":"20 iunie, ora 1:00","teams":"Scoția - Maroc"},
+  {"date":"20 iunie, ora 3:30","teams":"Brazilia - Haiti"},
+  {"date":"20 iunie, ora 6:00","teams":"Turcia - Paraguay"},
+  {"date":"20 iunie, ora 20:00","teams":"Olanda - Suedia"},
+  {"date":"20 iunie, ora 23:00","teams":"Germania - Coasta de Fildeș"},
+  {"date":"21 iunie, ora 3:00","teams":"Ecuador - Curacao"},
+  {"date":"21 iunie, ora 7:00","teams":"Tunisia - Japonia"},
+  {"date":"21 iunie, ora 19:00","teams":"Spania - Arabia Saudită"},
+  {"date":"21 iunie, ora 22:00","teams":"Belgia - Iran"},
+  {"date":"22 iunie, ora 1:00","teams":"Uruguay - Insulele Capului Verde"},
+  {"date":"22 iunie, ora 4:00","teams":"Noua Zeelandă - Egipt"},
+  {"date":"22 iunie, ora 20:00","teams":"Argentina - Austria"},
+  {"date":"23 iunie, ora 0:00","teams":"Franța - Irak"},
+  {"date":"23 iunie, ora 3:00","teams":"Norvegia - Senegal"},
+  {"date":"23 iunie, ora 6:00","teams":"Iordania - Algeria"},
+  {"date":"23 iunie, ora 20:00","teams":"Portugalia - Uzbekistan"},
+  {"date":"23 iunie, ora 23:00","teams":"Anglia - Ghana"},
+  {"date":"24 iunie, ora 2:00","teams":"Panama - Croația"},
+  {"date":"24 iunie, ora 5:00","teams":"Columbia - RD Congo"},
+  {"date":"24 iunie, ora 22:00","teams":"Elveția - Canada"},
+  {"date":"24 iunie, ora 22:00","teams":"Bosnia - Qatar"},
+  {"date":"25 iunie, ora 1:00","teams":"Scoția - Brazilia"},
+  {"date":"25 iunie, ora 1:00","teams":"Maroc - Haiti"},
+  {"date":"25 iunie, ora 4:00","teams":"Africa de Sud - Coreea de Sud"},
+  {"date":"25 iunie, ora 4:00","teams":"Cehia - Mexic"},
+  {"date":"25 iunie, ora 23:00","teams":"Ecuador - Germania"},
+  {"date":"25 iunie, ora 23:00","teams":"Curacao - Coasta de Fildeș"},
+  {"date":"26 iunie, ora 2:00","teams":"Tunisia - Olanda"},
+  {"date":"26 iunie, ora 2:00","teams":"Japonia - Suedia"},
+  {"date":"26 iunie, ora 5:00","teams":"Paraguay - Australia"},
+  {"date":"26 iunie, ora 5:00","teams":"Turcia - SUA"},
+  {"date":"26 iunie, ora 22:00","teams":"Norvegia - Franța"},
+  {"date":"26 iunie, ora 22:00","teams":"Senegal - Irak"},
+  {"date":"27 iunie, ora 3:00","teams":"Uruguay - Spania"},
+  {"date":"27 iunie, ora 3:00","teams":"Insulele Capului Verde - Arabia Saudită"},
+  {"date":"27 iunie, ora 6:00","teams":"Noua Zeelandă - Belgia"},
+  {"date":"27 iunie, ora 6:00","teams":"Egipt - Iran"},
+  {"date":"28 iunie, ora 0:00","teams":"Panama - Anglia"},
+  {"date":"28 iunie, ora 0:00","teams":"Croația - Ghana"},
+  {"date":"28 iunie, ora 2:30","teams":"Columbia - Portugalia"},
+  {"date":"28 iunie, ora 2:30","teams":"RD Congo - Uzbekistan"},
+  {"date":"28 iunie, ora 5:00","teams":"Iordania - Argentina"},
+  {"date":"28 iunie, ora 5:00","teams":"Algeria - Austria"}
+];
+
+export async function importMatches() {
+  const formattedMatches = matches.map(m => {
+    const [teamHome, teamAway] = m.teams.split(' - ');
+    // Simplified date conversion for demo purposes
+    const startDate = new Date(`2026-${m.date.replace(' iunie', '-06').replace(' ora ', 'T')}:00`).toISOString();
+    return {
+      team_home: teamHome.trim(),
+      team_away: teamAway.trim(),
+      start_time: startDate,
+      status: 'scheduled'
+    };
+  });
+
+  const { error } = await supabase.from('matches').insert(formattedMatches);
+  if (error) console.error('Error importing matches:', error);
+  else alert('Matches imported successfully!');
+}

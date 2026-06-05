@@ -221,6 +221,19 @@ export function App() {
             ) : (
               <>
               <div className="bg-white rounded-xl border p-4 shadow-sm space-y-4">
+                <h3 className="font-bold text-slate-700">Import Matches</h3>
+                <button 
+                  onClick={async () => {
+                    const { importMatches } = await import('./lib/importMatches');
+                    await importMatches();
+                  }}
+                  className="w-full bg-purple-600 text-white font-bold py-2 rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  Import Matches from Excel
+                </button>
+              </div>
+
+              <div className="bg-white rounded-xl border p-4 shadow-sm space-y-4">
                 <h3 className="font-bold text-slate-700">Add New Match</h3>
                 <form 
                   onSubmit={async (e) => {
