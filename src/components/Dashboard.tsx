@@ -56,8 +56,17 @@ export function Dashboard({ participants, matches }: { participants: { id: strin
             <div className="space-y-2 text-sm">
               {matches.map((m: any) => {
                 const pred = selectedP.predictions[m.id];
+                const realH = m.score_home !== undefined ? parseInt(m.score_home) : null;
+                const realA = m.score_away !== undefined ? parseInt(m.score_away) : null;
+                
+                let bgColor = 'bg-white';
+                if (pred && realH !== null && realA !== null) {
+                  const isCorrect = parseInt(pred.h) === realH && parseInt(pred.a) === realA;
+                  bgColor = isCorrect ? 'bg-green-200' : 'bg-red-200';
+                }
+
                 return (
-                  <div key={m.id} className="flex justify-between border-b pb-1">
+                  <div key={m.id} className={`flex justify-between border-b pb-1 px-2 ${bgColor}`}>
                     <span className="truncate w-1/2">{m.teams}</span>
                     <span className="font-bold">{pred ? `${pred.h} - ${pred.a}` : '-'}</span>
                   </div>
