@@ -7,11 +7,8 @@ const app = express();
 
 app.use(cors({ 
   origin: 'https://cm2026flex2.onrender.com',
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true 
 }));
-app.options('*', cors({ origin: 'https://cm2026flex2.onrender.com', credentials: true }));
 
 app.use(express.json());
 
