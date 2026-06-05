@@ -1,14 +1,37 @@
 import { useState } from 'preact/hooks'
-import { Trophy, Calendar, User, Settings } from 'lucide-react'
+import { Trophy, Calendar, User, Settings, LogOut } from 'lucide-react'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { useAuth } from './hooks/useAuth'
+import { useMatches, useLeaderboard, useProfile } from './hooks/useData'
+import { Auth } from './components/Auth'
+import { supabase } from './lib/supabase'
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
 export function App() {
+  const { user, loading: authLoading } = useAuth()
   const [activeTab, setActiveTab] = useState<'matches' | 'leaderboard' | 'profile' | 'admin'>('matches')
+  
+  const { matches, loading: matchesLoading } = useMatches()
+  const { profiles, loading: leaderboardLoading } = useLeaderboard()
+  const { profile } = useProfile(user?.id)
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <Auth />
+  }
+
+  const handleLogout = () => supabase.auth.signOut()
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-20">
@@ -19,10 +42,15 @@ export function App() {
           Mondial 2026
         </h1>
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium bg-slate-100 px-2 py-1 rounded">1,250 pts</span>
-          <div className="w-8 h-8 rounded-full bg-slate-200 border flex items-center justify-center">
-            <User className="w-5 h-5 text-slate-500" />
+          <span className="text-sm font-medium bg-slate-100 px-2 py-1 rounded">
+            {profile?.total_points ?? 0} pts
+          </span>
+          <div className="w-8 h-8 rounded-full bg-slate-200 border flex items-center justify-center overflow-hidden">
+            {user.email?.[0].toUpperCase() ?? <User className="w-5 h-5 text-slate-500" />}
           </div>
+          <button onClick={handleLogout} className="p-1 text-slate-400 hover:text-red-500 transition-colors">
+            <LogOut className="w-5 h-5" />
+          </button>
         </div>
       </header>
 
@@ -31,34 +59,49 @@ export function App() {
         {activeTab === 'matches' && (
           <section className="space-y-4">
             <h2 className="text-lg font-semibold px-1 text-left">Upcoming Matches</h2>
-            {/* Mock matches */}
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-white rounded-xl border p-4 shadow-sm space-y-3">
-                <div className="flex items-center justify-between text-xs text-slate-500 font-medium">
-                  <span>Match #{i}</span>
-                  <span>June 15, 2026 • 21:00</span>
-                </div>
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex flex-col items-center gap-1 flex-1">
-                    <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center text-lg font-bold">RO</div>
-                    <span className="text-sm font-semibold">Romania</span>
+            {matchesLoading ? (
+              <p className="text-center text-slate-500 py-10">Loading matches...</p>
+            ) : matches.length === 0 ? (
+              <p className="text-center text-slate-500 py-10">No matches found.</p>
+            ) : (
+              matches.map((match) => (
+                <div key={match.id} className="bg-white rounded-xl border p-4 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between text-xs text-slate-500 font-medium">
+                    <span className="uppercase tracking-wider">{match.status}</span>
+                    <span>{new Date(match.start_time).toLocaleDateString()} • {new Date(match.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
-                  <div className="text-xl font-bold text-slate-400">vs</div>
-                  <div className="flex flex-col items-center gap-1 flex-1">
-                    <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center text-lg font-bold">GE</div>
-                    <span className="text-sm font-semibold">Germany</span>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex flex-col items-center gap-1 flex-1">
+                      <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center text-lg font-bold">
+                        {match.team_home.substring(0, 2).toUpperCase()}
+                      </div>
+                      <span className="text-sm font-semibold truncate w-full text-center">{match.team_home}</span>
+                    </div>
+                    <div className="text-xl font-bold text-slate-400">
+                      {match.status === 'finished' || match.status === 'live' ? `${match.score_home} - ${match.score_away}` : 'vs'}
+                    </div>
+                    <div className="flex flex-col items-center gap-1 flex-1">
+                      <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center text-lg font-bold">
+                        {match.team_away.substring(0, 2).toUpperCase()}
+                      </div>
+                      <span className="text-sm font-semibold truncate w-full text-center">{match.team_away}</span>
+                    </div>
                   </div>
+                  {match.status === 'scheduled' && (
+                    <>
+                      <div className="pt-2 border-t flex items-center gap-2">
+                        <input type="number" placeholder="0" className="w-full bg-slate-50 border rounded-lg py-2 text-center font-bold outline-none focus:ring-2 focus:ring-blue-500 transition-all" />
+                        <span className="text-slate-300">-</span>
+                        <input type="number" placeholder="0" className="w-full bg-slate-50 border rounded-lg py-2 text-center font-bold outline-none focus:ring-2 focus:ring-blue-500 transition-all" />
+                      </div>
+                      <button className="w-full bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm shadow-blue-200">
+                        Save Prediction
+                      </button>
+                    </>
+                  )}
                 </div>
-                <div className="pt-2 border-t flex items-center gap-2">
-                   <input type="number" placeholder="0" className="w-full bg-slate-50 border rounded-lg py-2 text-center font-bold outline-none focus:ring-2 focus:ring-blue-500 transition-all" />
-                   <span className="text-slate-300">-</span>
-                   <input type="number" placeholder="0" className="w-full bg-slate-50 border rounded-lg py-2 text-center font-bold outline-none focus:ring-2 focus:ring-blue-500 transition-all" />
-                </div>
-                <button className="w-full bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm shadow-blue-200">
-                  Save Prediction
-                </button>
-              </div>
-            ))}
+              ))
+            )}
           </section>
         )}
 
@@ -75,17 +118,19 @@ export function App() {
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {[
-                      { name: 'Sergiu', points: 2450, rank: 1 },
-                      { name: 'Andrei', points: 2120, rank: 2 },
-                      { name: 'Elena', points: 1980, rank: 3 },
-                    ].map((user) => (
-                      <tr key={user.name}>
-                        <td className="px-4 py-4 font-bold text-slate-500">{user.rank}</td>
-                        <td className="px-4 py-4 font-semibold">{user.name}</td>
-                        <td className="px-4 py-4 text-right font-bold text-blue-600">{user.points}</td>
-                      </tr>
-                    ))}
+                    {leaderboardLoading ? (
+                      <tr><td colSpan={3} className="px-4 py-10 text-center text-slate-500">Loading rankings...</td></tr>
+                    ) : profiles.length === 0 ? (
+                      <tr><td colSpan={3} className="px-4 py-10 text-center text-slate-500">No users yet.</td></tr>
+                    ) : (
+                      profiles.map((p, idx) => (
+                        <tr key={p.id} className={cn(p.id === user.id && "bg-blue-50")}>
+                          <td className="px-4 py-4 font-bold text-slate-50">{idx + 1}</td>
+                          <td className="px-4 py-4 font-semibold">{p.full_name || p.id.substring(0, 8)}</td>
+                          <td className="px-4 py-4 text-right font-bold text-blue-600">{p.total_points}</td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
              </div>
@@ -96,21 +141,21 @@ export function App() {
           <section className="space-y-4 text-left">
             <h2 className="text-lg font-semibold px-1">Your Profile</h2>
             <div className="bg-white rounded-xl border p-6 shadow-sm flex flex-col items-center gap-4 text-center">
-              <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center border-4 border-white shadow-md">
-                <User className="w-10 h-10 text-blue-600" />
+              <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center border-4 border-white shadow-md text-2xl font-black text-blue-600">
+                {user.email?.[0].toUpperCase()}
               </div>
               <div>
-                <h3 className="text-xl font-bold">Sergiu Miculin</h3>
-                <p className="text-slate-500 text-sm">sergiu@example.com</p>
+                <h3 className="text-xl font-bold">{profile?.full_name || 'Prediction Fan'}</h3>
+                <p className="text-slate-500 text-sm">{user.email}</p>
               </div>
               <div className="grid grid-cols-2 gap-4 w-full pt-4">
                  <div className="bg-slate-50 p-3 rounded-lg border">
-                   <span className="block text-xs text-slate-500 uppercase font-bold">Rank</span>
-                   <span className="text-xl font-black text-slate-800">#1</span>
+                   <span className="block text-xs text-slate-500 uppercase font-bold text-center">Your Points</span>
+                   <span className="text-xl font-black text-blue-600 block text-center">{profile?.total_points ?? 0}</span>
                  </div>
                  <div className="bg-slate-50 p-3 rounded-lg border">
-                   <span className="block text-xs text-slate-500 uppercase font-bold">Points</span>
-                   <span className="text-xl font-black text-blue-600">2,450</span>
+                   <span className="block text-xs text-slate-500 uppercase font-bold text-center">Role</span>
+                   <span className="text-xl font-black text-slate-800 block text-center uppercase tracking-tighter">{profile?.role ?? 'User'}</span>
                  </div>
               </div>
             </div>
@@ -119,18 +164,25 @@ export function App() {
 
         {activeTab === 'admin' && (
           <section className="space-y-4 text-left">
-            <h2 className="text-lg font-semibold px-1">Admin Panel</h2>
-            <div className="bg-white rounded-xl border p-4 shadow-sm space-y-4">
-              <h3 className="font-bold text-slate-700">Add New Match</h3>
-              <div className="space-y-3">
-                <input type="text" placeholder="Team Home" className="w-full bg-slate-50 border rounded-lg py-2 px-3 outline-none focus:ring-2 focus:ring-blue-500" />
-                <input type="text" placeholder="Team Away" className="w-full bg-slate-50 border rounded-lg py-2 px-3 outline-none focus:ring-2 focus:ring-blue-500" />
-                <input type="datetime-local" className="w-full bg-slate-50 border rounded-lg py-2 px-3 outline-none focus:ring-2 focus:ring-blue-500" />
-                <button className="w-full bg-slate-800 text-white font-bold py-2 rounded-lg hover:bg-slate-900 transition-colors">
-                  Create Match
-                </button>
+            <h2 className="text-lg font-semibold px-1 text-center">Admin Panel</h2>
+            {profile?.role !== 'admin' ? (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-8 rounded-xl text-center">
+                <p className="font-bold">Access Denied</p>
+                <p className="text-sm">You need admin privileges to access this section.</p>
               </div>
-            </div>
+            ) : (
+              <div className="bg-white rounded-xl border p-4 shadow-sm space-y-4">
+                <h3 className="font-bold text-slate-700">Add New Match</h3>
+                <div className="space-y-3">
+                  <input type="text" placeholder="Team Home" className="w-full bg-slate-50 border rounded-lg py-2 px-3 outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input type="text" placeholder="Team Away" className="w-full bg-slate-50 border rounded-lg py-2 px-3 outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input type="datetime-local" className="w-full bg-slate-50 border rounded-lg py-2 px-3 outline-none focus:ring-2 focus:ring-blue-500" />
+                  <button className="w-full bg-slate-800 text-white font-bold py-2 rounded-lg hover:bg-slate-900 transition-colors">
+                    Create Match
+                  </button>
+                </div>
+              </div>
+            )}
           </section>
         )}
       </main>
