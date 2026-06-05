@@ -1,5 +1,3 @@
-import { supabase } from '../lib/supabase';
-
 const matches = [
   {"date":"11 iunie, ora 22:00","teams":"Mexic - Africa de Sud"},
   {"date":"12 iunie, ora 5:00","teams":"Coreea de Sud - Cehia"},
@@ -78,17 +76,25 @@ const matches = [
 export async function importMatches() {
   const formattedMatches = matches.map(m => {
     const [teamHome, teamAway] = m.teams.split(' - ');
-    // Simplified date conversion for demo purposes
-    const startDate = new Date(`2026-${m.date.replace(' iunie', '-06').replace(' ora ', 'T')}:00`).toISOString();
+    // Date parsing fallback
+    const matchDateString = `2026-${m.date.replace(' iunie', '-06').replace(' ora ', 'T')}:00`;
+    let startDate = new Date(matchDateString);
+    if (isNaN(startDate.getTime())) startDate = new Date(); // Fallback to now
+
     return {
       team_home: teamHome.trim(),
       team_away: teamAway.trim(),
-      start_time: startDate,
+      start_time: startDate.toISOString(),
       status: 'scheduled'
     };
   });
 
-  const { error } = await supabase.from('matches').insert(formattedMatches);
-  if (error) console.error('Error importing matches:', error);
+  const response = await fetch('https://cm2026flex2-backend.onrender.com/api/matches', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(formattedMatches) // Backend-ul trebuie să suporte bulk insert
+  });
+
+  if (!response.ok) console.error('Error importing matches');
   else alert('Matches imported successfully!');
 }

@@ -4,18 +4,22 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
-app.use(cors({ origin: 'https://cm2026flex2.onrender.com' }));
+app.use(cors({ origin: 'https://cm2026flex2.onrender.com', credentials: true }));
 app.use(express.json());
 
 const pool = new Pool({ 
   connectionString: process.env.DATABASE_URL 
 });
 
-// GET Matches
-app.get('/api/matches', async (req, res) => {
+// POST Matches (Bulk)
+app.post('/api/matches', async (req, res) => {
+  const matches = req.body;
   try {
-    const result = await pool.query('SELECT * FROM matches ORDER BY start_time');
-    res.json(result.rows);
+    const query = 'INSERT INTO matches (team_home, team_away, start_time, status) VALUES ' + 
+                  matches.map((_, i) => `($${i*4+1}, $${i*4+2}, $${i*4+3}, $${i*4+4})`).join(', ');
+    const values = matches.flatMap(m => [m.team_home, m.team_away, m.start_time, m.status]);
+    await pool.query(query, values);
+    res.json({ message: 'Matches imported' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
