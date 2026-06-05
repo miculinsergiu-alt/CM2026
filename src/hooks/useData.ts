@@ -1,106 +1,35 @@
 import { useState, useEffect } from 'preact/hooks';
-import { supabase } from '../lib/supabase';
-import type { Match, Profile } from '../types';
+
+const API_URL = 'http://localhost:3000/api';
 
 export function useMatches() {
-  const [matches, setMatches] = useState<Match[]>([]);
+  const [matches, setMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchMatches() {
-      const { data } = await supabase
-        .from('matches')
-        .select('*')
-        .order('start_time', { ascending: true });
-
-      if (data) setMatches(data);
-      setLoading(false);
-    }
-
-    fetchMatches();
+    fetch(`${API_URL}/matches`)
+      .then(res => res.json())
+      .then(data => { setMatches(data); setLoading(false); });
   }, []);
 
   return { matches, loading };
 }
 
-export function useProfile(userId: string | undefined) {
-  const [profile, setProfile] = useState<Profile | null>(null);
+export function useAdminData() {
+  const [participants, setParticipants] = useState<any[]>([]);
+  const [matches, setMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!userId) {
-      setProfile(null);
+    Promise.all([
+      fetch(`${API_URL}/participants`).then(res => res.json()),
+      fetch(`${API_URL}/matches`).then(res => res.json())
+    ]).then(([pData, mData]) => {
+      setParticipants(pData);
+      setMatches(mData);
       setLoading(false);
-      return;
-    }
-
-    async function fetchProfile() {
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (data) setProfile(data);
-      setLoading(false);
-    }
-
-    fetchProfile();
-  }, [userId]);
-
-  return { profile, loading };
-}
-
-export function useLeaderboard() {
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchLeaderboard() {
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('total_points', { ascending: false });
-
-      if (data) setProfiles(data);
-      setLoading(false);
-    }
-
-    fetchLeaderboard();
+    });
   }, []);
 
-  return { profiles, loading };
-}
-
-export function useUserPredictions(userId: string | undefined) {
-  const [predictions, setPredictions] = useState<Record<string, { home: number; away: number }>>({});
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!userId) {
-      setPredictions({});
-      setLoading(false);
-      return;
-    }
-
-    async function fetchPredictions() {
-      const { data } = await supabase
-        .from('predictions')
-        .select('match_id, predicted_home, predicted_away')
-        .eq('user_id', userId);
-
-      if (data) {
-        const predMap: Record<string, { home: number; away: number }> = {};
-        data.forEach(p => {
-          predMap[p.match_id] = { home: p.predicted_home, away: p.predicted_away };
-        });
-        setPredictions(predMap);
-      }
-      setLoading(false);
-    }
-
-    fetchPredictions();
-  }, [userId]);
-
-  return { predictions, loading };
+  return { participants, matches, loading };
 }

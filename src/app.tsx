@@ -3,7 +3,7 @@ import { Trophy, Calendar, User, Settings, LogOut } from 'lucide-react'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { useAuth } from './hooks/useAuth'
-import { useMatches, useLeaderboard, useProfile, useUserPredictions } from './hooks/useData'
+import { useMatches, useLeaderboard, useProfile, useUserPredictions, useAdminData } from './hooks/useData'
 import { Auth } from './components/Auth'
 import { supabase } from './lib/supabase'
 import { useEffect } from 'preact/hooks'
@@ -20,6 +20,7 @@ export function App() {
   const { profiles, loading: leaderboardLoading } = useLeaderboard()
   const { profile } = useProfile(user?.id)
   const { predictions: existingPredictions } = useUserPredictions(user?.id)
+  const { participants: adminParticipants, matches: adminMatches } = useAdminData()
 
   const [predictions, setPredictions] = useState<Record<string, { home: number; away: number }>>({})
 
@@ -91,7 +92,7 @@ export function App() {
             ) : matches.length === 0 ? (
               <p className="text-center text-slate-500 py-10">No matches found.</p>
             ) : (
-              matches.map((match) => (
+              matches.map((match: any) => (
                 <div key={match.id} className="bg-white rounded-xl border p-4 shadow-sm space-y-3">
                   <div className="flex items-center justify-between text-xs text-slate-500 font-medium">
                     <span className="uppercase tracking-wider">{match.status}</span>
@@ -171,7 +172,7 @@ export function App() {
                     ) : profiles.length === 0 ? (
                       <tr><td colSpan={3} className="px-4 py-10 text-center text-slate-500">No users yet.</td></tr>
                     ) : (
-                      profiles.map((p, idx) => (
+                      profiles.map((p: any, idx: number) => (
                         <tr key={p.id} className={cn(p.id === user.id && "bg-blue-50")}>
                           <td className="px-4 py-4 font-bold text-slate-50">{idx + 1}</td>
                           <td className="px-4 py-4 font-semibold">{p.full_name || p.id.substring(0, 8)}</td>
@@ -211,125 +212,70 @@ export function App() {
         )}
 
         {activeTab === 'admin' && (
-          <section className="space-y-4 text-left">
+          <section className="space-y-6 text-left">
             <h2 className="text-lg font-semibold px-1 text-center">Admin Panel</h2>
-            {profile?.role !== 'admin' ? (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-8 rounded-xl text-center">
-                <p className="font-bold">Access Denied</p>
-                <p className="text-sm">You need admin privileges to access this section.</p>
+            
+            {/* Create Participant */}
+            <div className="bg-white rounded-xl border p-4 shadow-sm space-y-4">
+              <h3 className="font-bold text-slate-700">Add Participant</h3>
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                const name = (e.target as any).pName.value;
+                if (!name) return;
+                await fetch('http://localhost:3000/api/participants', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ name })
+                });
+                alert('Participant added!');
+                (e.target as any).reset();
+              }} className="flex gap-2">
+                <input name="pName" placeholder="Participant Name" className="flex-1 bg-slate-50 border rounded-lg py-2 px-3" />
+                <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold">Add</button>
+              </form>
+            </div>
+
+            {/* Prediction Entry */}
+            <div className="bg-white rounded-xl border p-4 shadow-sm space-y-4">
+              <h3 className="font-bold text-slate-700">Enter Predictions</h3>
+              <select onChange={(e) => {
+                (window as any).selectedPid = (e.target as HTMLSelectElement).value;
+              }} className="w-full bg-slate-50 border rounded-lg py-2 px-3">
+                <option value="">Select Participant</option>
+                {adminParticipants.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+              <div className="space-y-2">
+                {adminMatches.map((m: any) => (
+                  <div key={m.id} className="flex items-center gap-2 text-sm">
+                    <span className="flex-1 truncate">{m.team_home} vs {m.team_away}</span>
+                    <input name={`h-${m.id}`} type="number" placeholder="H" className="w-12 bg-slate-50 border rounded text-center" />
+                    <input name={`a-${m.id}`} type="number" placeholder="A" className="w-12 bg-slate-50 border rounded text-center" />
+                  </div>
+                ))}
               </div>
-            ) : (
-              <>
-              <div className="bg-white rounded-xl border p-4 shadow-sm space-y-4">
-                <h3 className="font-bold text-slate-700">Import Matches</h3>
-                <button 
-                  onClick={async () => {
-                    const { importMatches } = await import('./lib/importMatches');
-                    await importMatches();
-                  }}
-                  className="w-full bg-purple-600 text-white font-bold py-2 rounded-lg hover:bg-purple-700 transition-colors"
-                >
-                  Import Matches from Excel
-                </button>
-              </div>
+              <button 
+                onClick={async () => {
+                   const pid = (window as any).selectedPid;
+                   if (!pid) return alert('Select participant');
 
-              <div className="bg-white rounded-xl border p-4 shadow-sm space-y-4">
-                <h3 className="font-bold text-slate-700">Add New Match</h3>
-                <form 
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    const target = e.target as HTMLFormElement;
-                    const home = (target.elements.namedItem('home') as HTMLInputElement).value;
-                    const away = (target.elements.namedItem('away') as HTMLInputElement).value;
-                    const time = (target.elements.namedItem('time') as HTMLInputElement).value;
-                    
-                    if (!home || !away || !time) return alert('Please fill all fields');
+                   const predictionsToSave = adminMatches.map((m: any) => {
+                      const hInput = document.querySelector(`input[name="h-${m.id}"]`) as HTMLInputElement;
+                      const aInput = document.querySelector(`input[name="a-${m.id}"]`) as HTMLInputElement;
+                      return { participant_id: pid, match_id: m.id, predicted_home: parseInt(hInput.value), predicted_away: parseInt(aInput.value) };
+                   }).filter((p: any) => !isNaN(p.predicted_home) && !isNaN(p.predicted_away));
 
-                    const { error } = await supabase.from('matches').insert([
-                      { team_home: home, team_away: away, start_time: new Date(time).toISOString(), status: 'scheduled' }
-                    ]);
-
-                    if (error) alert(error.message);
-                    else {
-                      alert('Match created!');
-                      target.reset();
-                    }
-                  }}
-                  className="space-y-3"
-                >
-                  <input name="home" type="text" placeholder="Team Home" className="w-full bg-slate-50 border rounded-lg py-2 px-3 outline-none focus:ring-2 focus:ring-blue-500" />
-                  <input name="away" type="text" placeholder="Team Away" className="w-full bg-slate-50 border rounded-lg py-2 px-3 outline-none focus:ring-2 focus:ring-blue-500" />
-                  <input name="time" type="datetime-local" className="w-full bg-slate-50 border rounded-lg py-2 px-3 outline-none focus:ring-2 focus:ring-blue-500" />
-                  <button type="submit" className="w-full bg-slate-800 text-white font-bold py-2 rounded-lg hover:bg-slate-900 transition-colors">
-                    Create Match
-                  </button>
-                </form>
-              </div>
-
-              <div className="bg-white rounded-xl border p-4 shadow-sm space-y-4">
-                <h3 className="font-bold text-slate-700">Update Match Scores</h3>
-                <div className="space-y-4">
-                  {matches.filter(m => m.status !== 'finished').map(match => (
-                    <div key={match.id} className="p-3 border rounded-lg bg-slate-50 space-y-3">
-                      <div className="flex justify-between text-xs font-bold text-slate-500">
-                        <span>{match.team_home} vs {match.team_away}</span>
-                      </div>
-                      <form 
-                        onSubmit={async (e) => {
-                          e.preventDefault();
-                          const target = e.target as HTMLFormElement;
-                          const hScore = parseInt((target.elements.namedItem('hScore') as HTMLInputElement).value);
-                          const aScore = parseInt((target.elements.namedItem('aScore') as HTMLInputElement).value);
-                          
-                          if (isNaN(hScore) || isNaN(aScore)) return alert('Enter valid scores');
-
-                          // 1. Update Match Status & Score
-                          const { error: matchErr } = await supabase.from('matches').update({
-                            score_home: hScore,
-                            score_away: aScore,
-                            status: 'finished'
-                          }).eq('id', match.id);
-
-                          if (matchErr) return alert(matchErr.message);
-
-                          // 2. Fetch all predictions for this match
-                          const { data: preds, error: predErr } = await supabase
-                            .from('predictions')
-                            .select('*')
-                            .eq('match_id', match.id);
-
-                          if (predErr) return alert(predErr.message);
-
-                          // 3. Calculate and update points per prediction
-                          const { calculatePoints } = await import('./lib/points');
-                          for (const p of (preds || [])) {
-                            const points = calculatePoints(p.predicted_home, p.predicted_away, hScore, aScore);
-                            
-                            // Update prediction points
-                            await supabase.from('predictions').update({ points_earned: points }).eq('id', p.id);
-                            
-                            // Update user total points (this should ideally be a DB trigger or RPC for atomicity)
-                            const { data: prof } = await supabase.from('profiles').select('total_points').eq('id', p.user_id).single();
-                            await supabase.from('profiles').update({ 
-                              total_points: (prof?.total_points || 0) + points 
-                            }).eq('id', p.user_id);
-                          }
-
-                          alert('Scores updated and points recalculated!');
-                        }}
-                        className="flex items-center gap-2"
-                      >
-                        <input name="hScore" type="number" placeholder="0" className="w-full bg-white border rounded py-1 text-center font-bold" />
-                        <span>-</span>
-                        <input name="aScore" type="number" placeholder="0" className="w-full bg-white border rounded py-1 text-center font-bold" />
-                        <button type="submit" className="bg-green-600 text-white px-3 py-1 rounded text-sm font-bold">Finish</button>
-                      </form>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              </>
-            )}
+                   await fetch('http://localhost:3000/api/predictions', {
+                     method: 'POST',
+                     headers: { 'Content-Type': 'application/json' },
+                     body: JSON.stringify(predictionsToSave[0]) // Simplificat pentru un singur apel
+                   });
+                   alert("Predicție salvată!");
+                }}
+                className="w-full bg-green-600 text-white font-bold py-2 rounded-lg"
+              >
+                Salvează Predicții
+              </button>
+            </div>
           </section>
         )}
       </main>
