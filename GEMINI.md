@@ -15,7 +15,10 @@ Mobile-first SPA for World Cup 2026 predictions with a competitive scoring syste
    - **Leaderboard:** Global ranking by points.
    - **Profile:** User stats (points, role).
 3. **Admin Panel:** Match creation (restricted to 'admin' role).
-4. **Scoring Logic:**
+4. **Predictions:**
+   - Users can save and update scores for upcoming matches.
+   - Existing predictions are automatically retrieved on login.
+5. **Scoring Logic:**
    - Correct Score: +3 pts
    - Correct Result: +1 pt
    - Incorrect: -1 pt

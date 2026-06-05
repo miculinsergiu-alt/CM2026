@@ -219,6 +219,7 @@ export function App() {
                 <p className="text-sm">You need admin privileges to access this section.</p>
               </div>
             ) : (
+              <>
               <div className="bg-white rounded-xl border p-4 shadow-sm space-y-4">
                 <h3 className="font-bold text-slate-700">Add New Match</h3>
                 <form 
@@ -251,6 +252,70 @@ export function App() {
                   </button>
                 </form>
               </div>
+
+              <div className="bg-white rounded-xl border p-4 shadow-sm space-y-4">
+                <h3 className="font-bold text-slate-700">Update Match Scores</h3>
+                <div className="space-y-4">
+                  {matches.filter(m => m.status !== 'finished').map(match => (
+                    <div key={match.id} className="p-3 border rounded-lg bg-slate-50 space-y-3">
+                      <div className="flex justify-between text-xs font-bold text-slate-500">
+                        <span>{match.team_home} vs {match.team_away}</span>
+                      </div>
+                      <form 
+                        onSubmit={async (e) => {
+                          e.preventDefault();
+                          const target = e.target as HTMLFormElement;
+                          const hScore = parseInt((target.elements.namedItem('hScore') as HTMLInputElement).value);
+                          const aScore = parseInt((target.elements.namedItem('aScore') as HTMLInputElement).value);
+                          
+                          if (isNaN(hScore) || isNaN(aScore)) return alert('Enter valid scores');
+
+                          // 1. Update Match Status & Score
+                          const { error: matchErr } = await supabase.from('matches').update({
+                            score_home: hScore,
+                            score_away: aScore,
+                            status: 'finished'
+                          }).eq('id', match.id);
+
+                          if (matchErr) return alert(matchErr.message);
+
+                          // 2. Fetch all predictions for this match
+                          const { data: preds, error: predErr } = await supabase
+                            .from('predictions')
+                            .select('*')
+                            .eq('match_id', match.id);
+
+                          if (predErr) return alert(predErr.message);
+
+                          // 3. Calculate and update points per prediction
+                          const { calculatePoints } = await import('./lib/points');
+                          for (const p of (preds || [])) {
+                            const points = calculatePoints(p.predicted_home, p.predicted_away, hScore, aScore);
+                            
+                            // Update prediction points
+                            await supabase.from('predictions').update({ points_earned: points }).eq('id', p.id);
+                            
+                            // Update user total points (this should ideally be a DB trigger or RPC for atomicity)
+                            const { data: prof } = await supabase.from('profiles').select('total_points').eq('id', p.user_id).single();
+                            await supabase.from('profiles').update({ 
+                              total_points: (prof?.total_points || 0) + points 
+                            }).eq('id', p.user_id);
+                          }
+
+                          alert('Scores updated and points recalculated!');
+                        }}
+                        className="flex items-center gap-2"
+                      >
+                        <input name="hScore" type="number" placeholder="0" className="w-full bg-white border rounded py-1 text-center font-bold" />
+                        <span>-</span>
+                        <input name="aScore" type="number" placeholder="0" className="w-full bg-white border rounded py-1 text-center font-bold" />
+                        <button type="submit" className="bg-green-600 text-white px-3 py-1 rounded text-sm font-bold">Finish</button>
+                      </form>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              </>
             )}
           </section>
         )}
