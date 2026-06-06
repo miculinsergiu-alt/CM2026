@@ -248,13 +248,26 @@ app.post("/api/predictions/:participantId", async (req, res) => {
   }
 });
 
-// PUT save match result
+// PUT save/update match result (poate fi apelat și pentru modificare)
 app.put("/api/matches/:id/result", async (req, res) => {
   const { homeScore, awayScore } = req.body;
   try {
     await pool.query(
       "UPDATE matches SET home_score=$1, away_score=$2, played=TRUE WHERE id=$3",
       [homeScore, awayScore, req.params.id]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE result — resetează un meci la nevalidat
+app.delete("/api/matches/:id/result", async (req, res) => {
+  try {
+    await pool.query(
+      "UPDATE matches SET home_score=NULL, away_score=NULL, played=FALSE WHERE id=$1",
+      [req.params.id]
     );
     res.json({ ok: true });
   } catch (err) {

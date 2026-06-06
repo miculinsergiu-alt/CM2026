@@ -108,6 +108,16 @@ export default function App() {
     finally { setSaving(false); }
   };
 
+  const deleteResult = async (matchId) => {
+    setSaving(true);
+    try {
+      await api.del(`/api/matches/${matchId}/result`);
+      await loadData();
+      showToast("Rezultat șters.");
+    } catch { showToast("Eroare server", "err"); }
+    finally { setSaving(false); }
+  };
+
   const leaderboard = data.participants.map(p => {
     let correct = 0, total = 0;
     const preds = data.predictions[p.id] || {};
@@ -322,30 +332,56 @@ export default function App() {
 
             {adminSub==="results" && (
               <div>
-                <div style={{background:"#0d1a12",border:"1px solid #14532d",borderRadius:10,padding:"11px 14px",marginBottom:14,color:"#86efac",fontSize:12}}>⚽ Introdu scorul final. Predicțiile se validează automat.</div>
+                <div style={{background:"#0d1a12",border:"1px solid #14532d",borderRadius:10,padding:"11px 14px",marginBottom:14,color:"#86efac",fontSize:12}}>⚽ Introdu scorul final. Meciurile validate pot fi editate sau șterse.</div>
                 <DateFilter dates={DATES} value={dateFilter} onChange={setDateFilter} accent="#10b981"/>
                 {filteredMatches(dateFilter).map(match => {
                   const cur = resultInputs[match.id]||{home:"",away:""};
+                  const isEditing = !!resultInputs[match.id];
                   return (
-                    <div key={match.id} style={{background:match.played?"#050f09":"#111827",borderRadius:12,padding:"12px 14px",border:`1px solid ${match.played?"#14532d":"#1f2937"}`,marginBottom:9}}>
+                    <div key={match.id} style={{background:match.played&&!isEditing?"#050f09":"#111827",borderRadius:12,padding:"12px 14px",border:`1px solid ${match.played&&!isEditing?"#14532d":"#1f2937"}`,marginBottom:9}}>
                       <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:7}}>
                         <span style={{fontSize:10,color:"#475569"}}>{match.datetime}</span>
-                        {match.played && <span style={{fontSize:10,color:"#10b981",marginLeft:"auto"}}>✓ Validat</span>}
+                        {match.played && !isEditing && <span style={{fontSize:10,color:"#10b981",marginLeft:"auto"}}>✓ Validat</span>}
+                        {isEditing && <span style={{fontSize:10,color:"#f59e0b",marginLeft:"auto"}}>✏️ Editare...</span>}
                       </div>
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
                         <div style={{flex:1,textAlign:"right",fontSize:13,fontWeight:600,lineHeight:1.3}}>{match.home}</div>
-                        {match.played ? (
-                          <div style={{background:"#071a0f",borderRadius:8,padding:"7px 14px",border:"1px solid #14532d",display:"flex",gap:4,alignItems:"center"}}>
-                            <span style={{color:"#10b981",fontWeight:800,fontSize:16}}>{match.homeScore}</span><span style={{color:"#334155"}}>:</span><span style={{color:"#10b981",fontWeight:800,fontSize:16}}>{match.awayScore}</span>
+
+                        {match.played && !isEditing ? (
+                          /* ── Validat: afișează scorul + butoane Edit/Delete ── */
+                          <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                            <div style={{background:"#071a0f",borderRadius:8,padding:"7px 12px",border:"1px solid #14532d",display:"flex",gap:4,alignItems:"center"}}>
+                              <span style={{color:"#10b981",fontWeight:800,fontSize:16}}>{match.homeScore}</span>
+                              <span style={{color:"#334155"}}>:</span>
+                              <span style={{color:"#10b981",fontWeight:800,fontSize:16}}>{match.awayScore}</span>
+                            </div>
+                            <button
+                              onClick={() => setResultInputs(p=>({...p,[match.id]:{home:match.homeScore,away:match.awayScore}}))}
+                              style={{padding:"6px 10px",background:"#1e3a5f",border:"1px solid #3b82f6",borderRadius:8,color:"#60a5fa",fontWeight:700,fontSize:12,cursor:"pointer"}}>
+                              ✏️
+                            </button>
+                            <button
+                              onClick={() => deleteResult(match.id)}
+                              disabled={saving}
+                              style={{padding:"6px 10px",background:"#3f0a0a",border:"1px solid #ef4444",borderRadius:8,color:"#f87171",fontWeight:700,fontSize:12,cursor:"pointer",opacity:saving?0.6:1}}>
+                              🗑️
+                            </button>
                           </div>
                         ) : (
+                          /* ── Nevalidat sau în editare: inputs + salvare ── */
                           <div style={{display:"flex",gap:5,alignItems:"center"}}>
                             <ScoreInput value={cur.home} onChange={v=>setResultInputs(p=>({...p,[match.id]:{...cur,home:v}}))} green/>
                             <span style={{color:"#334155"}}>-</span>
                             <ScoreInput value={cur.away} onChange={v=>setResultInputs(p=>({...p,[match.id]:{...cur,away:v}}))} green/>
-                            <button onClick={()=>saveResult(match.id)} disabled={saving} style={{padding:"7px 11px",background:"#10b981",border:"none",borderRadius:8,color:"#000",fontWeight:700,fontSize:12,cursor:"pointer",opacity:saving?0.6:1}}>✓</button>
+                            <button onClick={()=>saveResult(match.id)} disabled={saving}
+                              style={{padding:"7px 11px",background:"#10b981",border:"none",borderRadius:8,color:"#000",fontWeight:700,fontSize:12,cursor:"pointer",opacity:saving?0.6:1}}>✓</button>
+                            {isEditing && (
+                              <button onClick={()=>setResultInputs(p=>{const n={...p};delete n[match.id];return n;})}
+                                style={{padding:"7px 10px",background:"#1e293b",border:"1px solid #334155",borderRadius:8,color:"#94a3b8",fontWeight:700,fontSize:12,cursor:"pointer"}}>✕</button>
+                            )}
                           </div>
                         )}
+
                         <div style={{flex:1,fontSize:13,fontWeight:600,lineHeight:1.3}}>{match.away}</div>
                       </div>
                     </div>
